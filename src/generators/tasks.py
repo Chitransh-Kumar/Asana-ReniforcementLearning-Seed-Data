@@ -1,9 +1,12 @@
 import random
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from utils.uuid import generate_uuid
-from utils.dates import random_past_datetime
-from constants.task_templates import TASK_TITLES, COMPONENTS, TASK_DESCRIPTIONS
+from utils.dates import random_past_date, random_past_timestamp
+from generators.task_content import (
+    generate_task_title,
+    generate_task_description
+)
 from constants.completion_rates import COMPLETION_RATES
 from config.settings import (
     MIN_TASKS_PER_PROJECT,
@@ -11,29 +14,33 @@ from config.settings import (
     UNASSIGNED_TASK_PROBABILITY
 )
 
+
 def generate_tasks(conn, projects, sections, team_memberships):
     cursor = conn.cursor()
     tasks = []
 
+    # Map sections per project
     project_sections = {}
     for s in sections:
         project_sections.setdefault(s["project_id"], []).append(s["section_id"])
 
-    # Pre-map users per team to ensure assignments stay within team boundaries
+    # Map users per team
     team_users = {}
     for tm in team_memberships:
         team_users.setdefault(tm["team_id"], []).append(tm["user_id"])
 
+    now = datetime.now()
+
     for project in projects:
         project_id = project["project_id"]
         project_type = project["project_type"]
+        team_id = project["team_id"]
 
         num_tasks = random.randint(
             MIN_TASKS_PER_PROJECT,
             MAX_TASKS_PER_PROJECT
         )
 
-         # Completion likelihood varies by project type
         completion_min, completion_max = COMPLETION_RATES[project_type]
         completion_prob = random.uniform(completion_min, completion_max)
 
@@ -42,35 +49,41 @@ def generate_tasks(conn, projects, sections, team_memberships):
 
             section_id = random.choice(project_sections[project_id])
 
-            title_template = random.choice(TASK_TITLES[project_type])
-            name = title_template.format(
-                component=random.choice(COMPONENTS)
-            )
+            name = generate_task_title()
+            description = generate_task_description()
 
-            description = random.choice(TASK_DESCRIPTIONS)
-
-            # Explicitly model unassigned backlog and triage work
+            # Assignee (15% unassigned)
             if random.random() < UNASSIGNED_TASK_PROBABILITY:
                 assignee_id = None
             else:
-                team_id = project["team_id"]
                 assignee_id = random.choice(team_users.get(team_id, [None]))
 
-            created_at = random_past_datetime(7, 180)
-            completed = random.random() < completion_prob
+            # Created at (timestamp)
+            created_at = random_past_timestamp(
+                min_days_ago=7,
+                max_days_ago=180
+            )
 
-            if random.random() < 0.1:
+            # Due date (DATE, 10% missing)
+            if random.random() < 0.10:
                 due_date = None
             else:
-                due_date = created_at + timedelta(
-                    days=random.choice([3, 7, 14, 30, 60, 90])
+                due_date = (
+                    created_at.date() +
+                    timedelta(days=random.choice([3, 7, 14, 30, 60, 90]))
                 )
+
+            completed = random.random() < completion_prob
 
             completed_at = None
             if completed:
                 completed_at = created_at + timedelta(
                     days=random.randint(1, 14)
                 )
+
+                # Ensure completed_at is before "now"
+                if completed_at > now:
+                    completed_at = now - timedelta(minutes=random.randint(1, 120))
 
             cursor.execute(
                 """
@@ -88,8 +101,8 @@ def generate_tasks(conn, projects, sections, team_memberships):
                     assignee_id,
                     due_date.isoformat() if due_date else None,
                     completed,
-                    created_at.isoformat(),
-                    completed_at.isoformat() if completed_at else None
+                    created_at.isoformat(sep=" "),
+                    completed_at.isoformat(sep=" ") if completed_at else None
                 )
             )
 

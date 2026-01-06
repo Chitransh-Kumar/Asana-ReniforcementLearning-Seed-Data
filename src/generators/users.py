@@ -1,31 +1,33 @@
 import random
 
 from utils.uuid import generate_uuid
-from utils.dates import random_past_datetime
+from utils.dates import random_past_date
 from constants.roles import USER_ROLES
-from constants.names import FIRST_NAMES, LAST_NAMES
 from config.settings import MIN_USERS, MAX_USERS
+from scrapers.names import generate_full_names  
+
 
 def generate_users(conn, org_id, domain):
     cursor = conn.cursor()
 
     num_users = random.randint(MIN_USERS, MAX_USERS)
 
+    # Generate full names once using web-scraped sources
+    full_names = generate_full_names(num_users)
+
     email_counter = {}
     users = []
 
     roles, weights = zip(*USER_ROLES)
 
-    for _ in range(num_users):
+    for full_name in full_names:
         user_id = generate_uuid()
 
-        first = random.choice(FIRST_NAMES)
-        last = random.choice(LAST_NAMES)
-        full_name = f"{first} {last}"
+        first, last = full_name.split(" ", 1)
 
         base_email = f"{first.lower()}.{last.lower()}@{domain}"
 
-        # ensure uniqueness
+        # Ensure email uniqueness
         if base_email not in email_counter:
             email_counter[base_email] = 1
             email = base_email
@@ -33,10 +35,9 @@ def generate_users(conn, org_id, domain):
             email_counter[base_email] += 1
             email = f"{first.lower()}.{last.lower()}{email_counter[base_email]}@{domain}"
 
-        # Role assignment follows weighted org-wide distribution
         role = random.choices(roles, weights=weights)[0]
 
-        created_at = random_past_datetime(
+        created_at = random_past_date(
             min_days_ago=365 * 2,
             max_days_ago=365 * 4
         )

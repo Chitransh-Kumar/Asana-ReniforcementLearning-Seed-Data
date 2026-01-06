@@ -1,21 +1,24 @@
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from utils.uuid import generate_uuid
-from utils.dates import random_past_datetime
+from utils.dates import random_past_timestamp
 from config.settings import SUBTASK_PROBABILITY, MAX_SUBTASKS_PER_TASK
-from constants.subtask_templates import SUBTASK_TEMPLATES
+from generators.task_content import generate_task_title
+
 
 def generate_subtasks(conn, tasks):
     cursor = conn.cursor()
     subtasks = []
 
+    now = datetime.now()
+
     for task in tasks:
-        # Only a subset of tasks are decomposed into subtasks
+        # Only a subset of tasks have subtasks
         if random.random() > SUBTASK_PROBABILITY:
             continue
 
-        task_id = task["task_id"]
+        parent_task_id = task["task_id"]
 
         cursor.execute(
             """
@@ -23,40 +26,49 @@ def generate_subtasks(conn, tasks):
             FROM tasks
             WHERE task_id = ?
             """,
-            (task_id,)
+            (parent_task_id,)
         )
-        parent = cursor.fetchone()
-
-        if not parent:
+        row = cursor.fetchone()
+        if not row:
             continue
+
+        parent_assignee_id, parent_due_date, parent_created_at, parent_completed = row
+        parent_created_at = datetime.fromisoformat(parent_created_at)
 
         num_subtasks = random.randint(1, MAX_SUBTASKS_PER_TASK)
 
         for _ in range(num_subtasks):
             subtask_id = generate_uuid()
-            name = random.choice(SUBTASK_TEMPLATES)
 
-            # Subtasks usually inherit ownership from the parent task
-            if random.random() < 0.8:
-                assignee_id = parent["assignee_id"]
+            # Name from scraped task titles
+            name = generate_task_title()
+
+            # Assignee: inherit from parent, 10% unassigned
+            if random.random() < 0.9:
+                assignee_id = parent_assignee_id
             else:
                 assignee_id = None
 
+            # Due date: must be <= parent task due date
             due_date = None
+            if parent_due_date:
+                if isinstance(parent_due_date, str):
+                    parent_due_date = datetime.fromisoformat(parent_due_date).date()
 
-            if parent["due_date"]:
-                parent_due_date = datetime.fromisoformat(parent["due_date"]).date()
+                offset_days = random.randint(0, 5)
+                due_date = parent_due_date - timedelta(days=offset_days)
 
-                # Subtask due dates constrained to not exceed parent task deadline
-                candidate_due_date = random_past_datetime(0, 7).date()
-                if candidate_due_date > parent_due_date:
-                    due_date = parent_due_date
-                else:
-                    due_date = candidate_due_date
+            # Created_at: always after parent task created_at
+            created_at = parent_created_at + timedelta(
+                days=random.randint(0, 5),
+                hours=random.randint(1, 8)
+            )
 
-            completed = parent["completed"] and random.random() < 0.9
+            if created_at > now:
+                created_at = now - timedelta(minutes=random.randint(1, 60))
 
-            created_at = random_past_datetime(1, 60)
+            # Completion: correlated with parent but not guaranteed
+            completed = parent_completed and random.random() < 0.85
 
             cursor.execute(
                 """
@@ -67,18 +79,18 @@ def generate_subtasks(conn, tasks):
                 """,
                 (
                     subtask_id,
-                    task_id,
+                    parent_task_id,
                     name,
                     assignee_id,
                     due_date.isoformat() if due_date else None,
                     completed,
-                    created_at.isoformat()
+                    created_at.isoformat(sep=" ")
                 )
             )
 
             subtasks.append({
                 "subtask_id": subtask_id,
-                "parent_task_id": task_id
+                "parent_task_id": parent_task_id
             })
 
     conn.commit()

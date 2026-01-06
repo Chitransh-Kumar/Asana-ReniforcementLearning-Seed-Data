@@ -1,5 +1,5 @@
 from utils.uuid import generate_uuid
-from utils.dates import random_past_datetime
+from utils.dates import random_past_date
 from config.settings import ORG_MIN_AGE_YEARS, ORG_MAX_AGE_YEARS
 
 def generate_organization(conn):
@@ -9,7 +9,7 @@ def generate_organization(conn):
     name = "Zapier"
     domain = "zapier.com"
 
-    created_at = random_past_datetime(
+    created_at = random_past_date(
         min_days_ago=ORG_MIN_AGE_YEARS * 365,
         max_days_ago=ORG_MAX_AGE_YEARS * 365
     )
@@ -20,7 +20,7 @@ def generate_organization(conn):
         INSERT INTO organizations (org_id, name, domain, created_at)
         VALUES (?, ?, ?, ?)
         """,
-        (org_id, name, domain, created_at.isoformat())
+        (org_id, name, domain, created_at)
     )
 
     conn.commit()

@@ -1,8 +1,14 @@
 import random
-from utils.dates import random_past_datetime
+from datetime import datetime
+
+from utils.dates import random_past_date
 
 def generate_team_memberships(conn, users, teams):
     cursor = conn.cursor()
+
+    # Fetch organization creation DATE
+    cursor.execute("SELECT created_at FROM organizations")
+    org_created_at = datetime.fromisoformat(cursor.fetchone()[0]).date()
 
     memberships = []
     seen = set()
@@ -10,7 +16,7 @@ def generate_team_memberships(conn, users, teams):
     for user in users:
         user_id = user["user_id"]
 
-        # Skewed distribution to model matrix orgs without over-assigning users
+        # Each user belongs to 1–3 teams
         num_teams = random.choices(
             [1, 2, 3],
             weights=[0.6, 0.3, 0.1]
@@ -24,12 +30,23 @@ def generate_team_memberships(conn, users, teams):
             key = (team_id, user_id)
             if key in seen:
                 continue
-            
-            # Join dates predate most project activity to reflect stable teams
-            joined_at = random_past_datetime(
+
+            # Fetch team creation DATE
+            cursor.execute(
+                "SELECT created_at FROM teams WHERE team_id = ?",
+                (team_id,)
+            )
+            team_created_at = datetime.fromisoformat(cursor.fetchone()[0]).date()
+
+            joined_at = random_past_date(
                 min_days_ago=365 * 2,
                 max_days_ago=365 * 4
             )
+
+            # Enforce temporal consistency
+            earliest_allowed = max(org_created_at, team_created_at)
+            if joined_at < earliest_allowed:
+                joined_at = earliest_allowed
 
             cursor.execute(
                 """

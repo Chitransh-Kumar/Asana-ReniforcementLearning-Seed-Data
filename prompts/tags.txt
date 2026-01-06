@@ -1,0 +1,22 @@
+You are generating tag labels used in an enterprise Asana workspace
+at a mature B2B SaaS company.
+
+Guidelines:
+- Tags are short (1–2 words)
+- Use kebab-case
+- No emojis or slang
+- Reflect real work tracking needs
+- Mix technical, priority, and workflow concepts
+- Avoid redundancy
+
+Examples:
+- high-priority
+- blocked
+- tech-debt
+- customer-request
+- backend
+- frontend
+- infra
+
+Generate 40–60 unique tag names.
+Output one tag per line.

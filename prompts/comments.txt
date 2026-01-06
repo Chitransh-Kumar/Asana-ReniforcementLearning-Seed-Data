@@ -1,0 +1,25 @@
+You are generating comments for tasks in an enterprise Asana workspace
+used by a mature B2B SaaS company.
+
+Context:
+- Teams collaborate asynchronously
+- Tasks may be blocked, in progress, or completed
+- Comments are short workplace updates
+
+Guidelines:
+- Tone: professional, neutral, collaborative
+- Length: 1–2 sentences
+- No emojis, jokes, or slang
+- No mention of Asana or internal systems
+- Avoid repetition
+- Vary intent: updates, blockers, reviews, clarifications
+
+Examples:
+- "Started working on this and will share an update soon."
+- "Blocked due to a dependency on another task."
+- "This is ready for review once tests pass."
+- "Adding more context here for visibility."
+- "Can we confirm priority before proceeding?"
+
+Generate 80–120 unique comments following these patterns.
+Output one comment per line.

@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+sys.path.append(str(ROOT_DIR))
+
 import os
 from db.connection import get_connection
 from db.migrate import run_migrations
@@ -37,22 +43,22 @@ def main():
     team_memberships = generate_team_memberships(conn, users, teams)
     print("Team memberships generated")
 
-    # Projects and sections define workflow context
+    # # Projects and sections define workflow context
     projects = generate_projects(conn, teams)
     print(f"Generated {len(projects)} projects")
 
     sections = generate_sections(conn, projects)
     print(f"Generated {len(sections)} sections")
 
-    # Tasks and subtasks capture execution-level behavior
+    # # Tasks and subtasks capture execution-level behavior
     tasks = generate_tasks(conn, projects, sections, team_memberships)
     print(f"Generated {len(tasks)} tasks")
 
     subtasks = generate_subtasks(conn, tasks)
     print(f"Generated {len(subtasks)} subtasks")
 
-    # Collaboration and metadata layers
-    comments = generate_comments(conn, tasks, team_memberships)
+    # # Collaboration and metadata layers
+    comments = generate_comments(conn, tasks)
     print(f"Generated {len(comments)} comments")
 
     tags = generate_tags(conn)

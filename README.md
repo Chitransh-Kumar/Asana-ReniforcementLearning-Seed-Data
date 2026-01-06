@@ -1,22 +1,27 @@
 # Asana RL Seed Data Simulation
 
-This repository contains a high-fidelity synthetic dataset that simulates how a large B2B SaaS organization uses **Asana** for day-to-day work management.
-The dataset is designed as **seed data for reinforcement learning (RL) environments** used to evaluate and fine-tune computer-use AI agents.
+This repository contains a **high-fidelity synthetic dataset** that simulates how a large **B2B SaaS organization** uses **Asana** for day-to-day work management.
 
-The focus of this project is **behavioral realism**, not replication of Asana’s internal production schema.
+The dataset is designed as **seed data for reinforcement learning (RL) environments** used to evaluate and fine-tune **computer-use AI agents** operating inside enterprise productivity tools.
+
+The primary focus of this project is **behavioral realism**, not replication of Asana’s internal production schema.
 
 ---
 
 ## Key Highlights
 
 - Simulates a mature B2B SaaS organization with **5,000–10,000 users**
-- Realistic organizational structure with teams and matrix memberships
-- Project-specific workflows and sections
-- Non-uniform task distributions (unassigned, overdue, incomplete tasks)
-- Single-level subtasks with strict temporal consistency
-- **LLM-assisted generation** for comments and tag vocabulary
-- Fully reproducible and deterministic
-- **No runtime API keys required**
+- Realistic organizational hierarchy with teams and **matrix memberships**
+- Project-scoped workflows and ordered sections
+- Non-uniform task distributions (unassigned tasks, missing due dates, incomplete work)
+- Single-level subtasks with strict temporal constraints
+- **Web-scraped content (one-time)** for:
+  - User names
+  - Project names
+  - Task titles and descriptions
+- Controlled fallback logic to ensure deterministic generation
+- **Offline, reproducible pipeline**
+- No runtime API keys or live network calls during generation
 
 ---
 
@@ -28,46 +33,30 @@ asana-rl-seed-data/
 ├── requirements.txt
 ├── schema.sql
 ├── .env.example
+│
+├── scrapers/
+│   ├── __init__.py
+│   ├── names.py
+│   ├── scrape_task_content.py
+│   └── cache/
+│       ├── asana_task_titles.json
+│       ├── asana_task_descriptions_short.json
+│       └── asana_task_descriptions_long.json
+│
 ├── src/
 │   ├── main.py
 │   ├── config/
-│   │   └── settings.py
 │   ├── db/
-│   │   ├── connection.py
-│   │   └── migrate.py
 │   ├── generators/
-│   │   ├── organizations.py
-│   │   ├── teams.py
-│   │   ├── users.py
-│   │   ├── team_memberships.py
-│   │   ├── projects.py
-│   │   ├── sections.py
-│   │   ├── tasks.py
-│   │   ├── subtasks.py
-│   │   ├── comments.py
-│   │   ├── tags.py
-│   │   ├── task_tags.py
-│   │   ├── custom_field_definitions.py
-│   │   └── custom_field_values.py
 │   ├── utils/
-│   │   ├── uuid.py
-│   │   └── dates.py
 │   └── constants/
-│       ├── roles.py
-│       ├── names.py
-│       ├── workflows.py
-│       ├── project_types.py
-│       ├── project_names.py
-│       ├── task_templates.py
-│       ├── subtask_templates.py
-│       ├── comment_templates.py
-│       ├── tag_vocab.py
-│       └── custom_fields.py
+│
 ├── prompts/
 │   ├── comments.txt
 │   ├── generated_comments.txt
 │   ├── tags.txt
 │   └── generated_tags.txt
+│
 └── output/
     └── asana_simulation.sqlite
 ```
@@ -78,27 +67,27 @@ asana-rl-seed-data/
 
 ### 1. Install dependencies
 
-```
+```bash
 pip install -r requirements.txt
 ```
 
-> Note: The project relies almost entirely on Python standard libraries.
-> No heavy external dependencies are required.
+---
+
+### 2. (Optional) Run one-time web scraping
+
+```bash
+python scrapers/scrape_task_content.py
+```
 
 ---
 
-### 2. Generate the dataset
+### 3. Generate the dataset
 
-```
+```bash
 python src/main.py
 ```
 
-This will:
-- Recreate the SQLite database
-- Apply schema migrations
-- Generate realistic seed data across all entities
-
-The final database is written to:
+The final database will be written to:
 
 ```
 output/asana_simulation.sqlite
@@ -106,33 +95,22 @@ output/asana_simulation.sqlite
 
 ---
 
-## LLM Usage (Reproducible by Design)
+## Web Scraping Strategy
 
-LLMs are used **only offline** to generate:
-- Task comment text
-- Tag vocabulary
+Web scraping is used **only as a one-time data source**. All scraped content is cached locally and reused during generation to ensure reproducibility.
 
-### How it works
+---
 
-- Prompt templates are stored in:
-  - `prompts/comments.txt`
-  - `prompts/tags.txt`
-- LLM outputs are generated once and cached in:
-  - `prompts/generated_comments.txt`
-  - `prompts/generated_tags.txt`
-- During data generation, the pipeline samples from cached outputs
+## LLM Usage (Offline & Cached)
 
-### Important Guarantees
-
-- No live API calls during execution
-- No API keys required
-- Fully deterministic and reproducible runs
+LLMs are used **only offline** to generate task comments and tag vocabularies. Outputs are cached and sampled during generation.
 
 ---
 
 ## Data Model Overview
 
-The dataset models the following core entities:
+The dataset models:
+
 - organizations
 - teams
 - users
@@ -149,49 +127,25 @@ The dataset models the following core entities:
 
 ---
 
-## Custom Fields
-
-- Scoped per project
-- Vary by project type
-- Partially populated to reflect real-world usage
-
----
-
 ## Design Principles
 
-- UUIDv4 identifiers for all primary keys
-- Strict foreign-key and temporal consistency
-- Skewed, non-uniform distributions by design
-- Partial and missing metadata is intentional
-- Clear separation between:
-  - schema
-  - generation logic
-  - content generation (LLM prompts)
+- UUIDv4 identifiers
+- Strict temporal and relational consistency
+- Intentional sparsity and skewed distributions
+- Clear separation between scraping, generation, and schema
 
 ---
 
 ## Output
 
-The final dataset is stored as a SQLite database:
-
 ```
 output/asana_simulation.sqlite
 ```
 
-This database is ready for:
-- RL environment simulation
-- behavioral analysis
-- downstream evaluation pipelines
-
----
-
-## Notes
-
-This project is intentionally scoped for clarity, realism, and reproducibility.
-Advanced Asana features outside core RL evaluation needs are omitted by design.
+Ready for RL simulation and downstream evaluation.
 
 ---
 
 ## License
 
-This project is provided for evaluation and educational purposes only.
+Provided for evaluation and educational purposes only.
